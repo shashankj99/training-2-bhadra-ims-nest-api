@@ -11,13 +11,7 @@ export class RolesService {
   async create(createRoleDto: CreateRoleDto) {
     createRoleDto.name = capitalizeFirstLetterOfEachWordInAPhrase(createRoleDto.name);
 
-    const role = await this.prismaService.role.findFirst({
-      where: {
-        name: createRoleDto.name,
-      },
-    });
-
-    if (role) {
+    if (await this.checkIfRoleExist(createRoleDto.name)) {
       throw new BadRequestException(`Role ${createRoleDto.name} has already been taken`);
     }
 
@@ -37,13 +31,7 @@ export class RolesService {
 
     updateRoleDto.name = capitalizeFirstLetterOfEachWordInAPhrase(updateRoleDto.name);
 
-    const role = await this.prismaService.role.findFirst({
-      where: {
-        name: updateRoleDto.name,
-      },
-    });
-
-    if (role && role.id !== id) {
+    if (!await this.checkIfRoleExist(updateRoleDto.name, id)) {
       throw new BadRequestException(`Role ${updateRoleDto.name} has already been taken`);
     }
 
@@ -66,5 +54,17 @@ export class RolesService {
     }
 
     return role;
+  }
+
+  private async checkIfRoleExist(name: string, id?: number): Promise<boolean> {
+    const role = await this.prismaService.role.findUnique({
+      where: { name, }
+    });
+
+    if (id) {
+      return role ? role.id === id : true;
+    }
+
+    return !!role;
   }
 }

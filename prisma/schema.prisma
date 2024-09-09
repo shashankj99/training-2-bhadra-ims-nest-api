@@ -13,8 +13,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum OrganizationType {
+  retail
+  wholesale
+}
+
 model Role {
   @@map("roles")
   id Int @id @default(autoincrement())
   name String @unique
+}
+
+model Organization {
+  @@map("organizations")
+  id Int @id @default(autoincrement())
+  name String @unique
+  type OrganizationType @default(retail)
+  address String?
+  phone String? @db.VarChar(15)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
