@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -35,20 +35,48 @@ export class UsersService {
     return this.prismaService.user.create({ data: createUserDto });
   }
 
-  findAll() {
-    return `This action returns all users`;
+  async findAll() {
+    return this.prismaService.user.findMany();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: number) {
+    return this.getUserById(id);
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    await this.getUserById(id);
+
+    const roleService = new RolesService(this.prismaService);
+    const organizationService = new OrganizationsService(this.prismaService);
+
+    await roleService.findOne(updateUserDto.role_id);
+    await organizationService.findOne(updateUserDto.organization_id);
+
+    if (updateUserDto.name) {
+      updateUserDto.name = capitalizeFirstLetterOfEachWordInAPhrase(updateUserDto.name);
+    }
+
+    if (!await this.checkIfEmailExist(updateUserDto.email, id)) {
+      throw new BadRequestException("This email has alredy been taken");
+    }
+
+    if (!await this.checkIfMobileExist(updateUserDto.mobile, id)) {
+      throw new BadRequestException("This mobile has alredy been taken");
+    }
+
+    if (updateUserDto.password) {
+      updateUserDto.password = await hash(updateUserDto.password, 10);
+    }
+
+    return this.prismaService.user.update({
+      where: { id },
+      data: updateUserDto,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async remove(id: number) {
+    await this.getUserById(id);
+    return this.prismaService.user.delete({ where: { id } });
   }
 
   private async checkIfEmailExist(email: string, id?: number): Promise<boolean> {
@@ -73,5 +101,15 @@ export class UsersService {
     }
 
     return !!user;
+  }
+
+  private async getUserById(id: number) {
+    const user = await this.prismaService.user.findFirst({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} does not exist`);
+    }
+
+    return user;
   }
 }
