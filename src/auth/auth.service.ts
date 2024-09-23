@@ -25,6 +25,9 @@ export class AuthService {
                     },
                 ],
             },
+            include: {
+                role: true,
+            },
         });
 
         if (!user) {

@@ -2,8 +2,10 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { SuperAdminGuard } from 'src/guards/super-admin/super-admin.guard';
 
 @Controller('roles')
+@UseGuards(SuperAdminGuard)
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
