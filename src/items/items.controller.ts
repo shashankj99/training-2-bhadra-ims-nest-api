@@ -6,7 +6,7 @@ import { Request } from 'express';
 import { User } from '@prisma/client';
 
 interface ItemRequest extends Request {
-  payload: User,
+  payload: User;
 }
 
 @Controller('items')

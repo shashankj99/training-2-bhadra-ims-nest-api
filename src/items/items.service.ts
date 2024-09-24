@@ -3,6 +3,7 @@ import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { capitalizeFirstLetterOfEachWordInAPhrase } from 'src/helpers/capitalize';
+import { Item } from '@prisma/client';
 
 @Injectable()
 export class ItemsService {
@@ -11,38 +12,39 @@ export class ItemsService {
   async create(createItemDto: CreateItemDto) {
     createItemDto.name = capitalizeFirstLetterOfEachWordInAPhrase(createItemDto.name);
 
-    return this.prismaService.item.upsert({
-      where: { name: createItemDto.name },
-      update: {
-        item_organizations: {
-          create: {
-            organization_id: createItemDto.organization_id,
-          }
-        },
-      },
-      create: {
-        ...createItemDto,
-        item_organizations: {
-          create: {
-            organization_id: createItemDto.organization_id,
-          }
-        }
-      }
+    let item: Item;
+
+    item = await this.prismaService.item.findUnique({
+      where: { name: createItemDto.name, },
     });
 
-    return this.prismaService.$transaction(async (tx) => {
-      const item = await tx.item.upsert({
-        where: { name: createItemDto.name },
-        update: {},
-        create: createItemDto,
-      });
-
-      await tx.itemOrganization.create({
+    if(!item) {
+      item = await this.prismaService.item.create({
         data: {
-          item_id: item.id,
-          organization_id: createItemDto.organization_id,
-        }
-      })
+          name: createItemDto.name,
+          quantity: createItemDto.quantity,
+          price: createItemDto.price,
+          ...(createItemDto.description && {
+            description: createItemDto.description,
+          }),
+          ...(createItemDto.discount && {
+            discount: createItemDto.discount,
+          }),
+          ...(createItemDto.discount_type && {
+            discount_type: createItemDto.discount_type,
+          }),
+          ...(createItemDto.tax && {
+            tax: createItemDto.tax,
+          }),
+        },
+      });
+    }
+
+    await this.prismaService.itemOrganization.create({
+      data: {
+        item_id: item.id,
+        organization_id: createItemDto.organization_id,
+      },
     });
   }
 
