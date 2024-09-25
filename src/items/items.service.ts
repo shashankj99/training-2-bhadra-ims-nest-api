@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -12,15 +12,13 @@ export class ItemsService {
   async create(createItemDto: CreateItemDto) {
     createItemDto.name = capitalizeFirstLetterOfEachWordInAPhrase(createItemDto.name);
 
-    let item: Item;
-
-    item = await this.prismaService.item.findUnique({
-      where: { name: createItemDto.name, },
-    });
-
-    if(!item) {
-      item = await this.prismaService.item.create({
-        data: {
+    return this.prismaService.$transaction(async (tx) => {
+      const item = await tx.item.upsert({
+        where: {
+          name: createItemDto.name,
+        },
+        update: {},
+        create: {
           name: createItemDto.name,
           quantity: createItemDto.quantity,
           price: createItemDto.price,
@@ -38,13 +36,26 @@ export class ItemsService {
           }),
         },
       });
-    }
 
-    await this.prismaService.itemOrganization.create({
-      data: {
-        item_id: item.id,
-        organization_id: createItemDto.organization_id,
-      },
+      const itemOrganization = await tx.itemOrganization.findFirst({
+        where: {
+          item_id: item.id,
+          organization_id: createItemDto.organization_id,
+        },
+      });
+
+      if (itemOrganization) {
+        throw new ConflictException('This item has already been added!');
+      }
+
+      await tx.itemOrganization.create({
+        data: {
+          item_id: item.id,
+          organization_id: createItemDto.organization_id,
+        },
+      });
+
+      return item;
     });
   }
 
