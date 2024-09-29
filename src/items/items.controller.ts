@@ -23,13 +23,16 @@ export class ItemsController {
   }
 
   @Get()
-  findAll() {
-    return this.itemsService.findAll();
+  findAll(@Req() request: ItemRequest) {
+    return this.itemsService.findAll(request.payload?.organization_id ?? 1);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.itemsService.findOne(+id);
+  findOne(
+    @Param('id') id: string,
+    @Req() request: ItemRequest,
+  ) {
+    return this.itemsService.findOne(+id, request.payload?.organization_id);
   }
 
   @Patch(':id')

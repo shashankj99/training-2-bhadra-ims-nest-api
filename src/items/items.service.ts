@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -59,12 +59,19 @@ export class ItemsService {
     });
   }
 
-  findAll() {
-    return `This action returns all items`;
+  async findAll(organization_id: number) {
+    return this.prismaService.itemOrganization.findMany({
+      where: {
+        organization_id,
+      },
+      include: {
+        item: true,
+      }
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} item`;
+  async findOne(id: number, organization_id: number) {
+    return this.getItemById(id, organization_id);
   }
 
   update(id: number, updateItemDto: UpdateItemDto) {
@@ -73,5 +80,23 @@ export class ItemsService {
 
   remove(id: number) {
     return `This action removes a #${id} item`;
+  }
+
+  private async getItemById(item_id: number, organization_id: number) {
+    const item = await this.prismaService.itemOrganization.findFirst({
+      where: {
+        item_id,
+        organization_id,
+      },
+      include: {
+        item: true,
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException(`Item with id ${item_id} does not exists`);
+    }
+
+    return item;
   }
 }
